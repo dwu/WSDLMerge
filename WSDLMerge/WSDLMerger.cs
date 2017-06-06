@@ -129,18 +129,9 @@ namespace WSDLMerge
             Dictionary<string, XmlElement> schemas = new Dictionary<string, XmlElement> ();
 
             XmlNodeList schemaNodes = typesElement.SelectNodes ( "xsd:schema", manager );
-            List<XmlNode> removeList = new List<XmlNode>();
             foreach (XmlElement schemaElement in schemaNodes)
 	        {
-                if (ProcessSchema(filename, wsdl, schemaElement, manager, schemas, 0))
-                {
-                    removeList.Add(schemaElement);
-                }
-            }
-
-            foreach (XmlNode node in removeList)
-            {
-                typesElement.RemoveChild(node);
+                ProcessSchema(filename, wsdl, schemaElement, manager, schemas);
             }
 
             foreach ( var schema in schemas.Values )
@@ -149,22 +140,21 @@ namespace WSDLMerge
             }
         }
 
-        private static bool ProcessSchema ( 
+        private static void ProcessSchema (
             string filename, 
             XmlDocument wsdl, 
             XmlElement rootElement, 
             XmlNamespaceManager manager, 
-            Dictionary<string, XmlElement> schemas, 
-            int level )
+            Dictionary<string, XmlElement> schemas)
         {
             XmlNodeList imports;
             imports = rootElement.SelectNodes ( "xsd:import", manager );
-            if (imports.Count == 0) return false;
+            if (imports.Count == 0) return;
 
-            foreach ( XmlNode node in imports )
+            foreach ( XmlNode import in imports )
             {
                 string importNamespace, importLocation;
-                GetImportDetails ( node, filename, out importNamespace, out importLocation );
+                GetImportDetails ( import, filename, out importNamespace, out importLocation );
 
                 string schemasKey = importNamespace + "{" + importLocation + "}";
 
@@ -180,7 +170,7 @@ namespace WSDLMerge
 
                 XmlElement newSchema = wsdl.ImportNode ( schemaDocument.DocumentElement, true ) as XmlElement;
                 
-                ProcessSchemaInnerImports(manager, level, newSchema);
+                ProcessSchemaImports(manager, newSchema);
 
                 ProcessSchemaIncludes(manager, filename, wsdl, newSchema);
 
@@ -191,11 +181,13 @@ namespace WSDLMerge
                     wsdl,
                     schemaDocument.DocumentElement,
                     PrepareNamespaceManager ( schemaDocument ),
-                    schemas,
-                    level + 1 );
-            }
+                    schemas);
 
-            return true;
+                if (import.Attributes["schemaLocation"] != null)
+                {
+                    import.Attributes.RemoveNamedItem("schemaLocation");
+                }
+            }
         }
 
         /// <summary>
@@ -240,21 +232,14 @@ namespace WSDLMerge
         /// <param name="manager"></param>
         /// <param name="level"></param>
         /// <param name="newSchema"></param>
-        private static void ProcessSchemaInnerImports(XmlNamespaceManager manager, int level, XmlElement newSchema)
+        private static void ProcessSchemaImports(XmlNamespaceManager manager, XmlElement newSchema)
         {
             XmlNodeList newImports = newSchema.SelectNodes("/xsd:import", manager);
             foreach (XmlNode importNode in newImports)
             {
-                if (level == 0)
+                if (importNode.Attributes["schemaLocation"] != null)
                 {
-                    newSchema.RemoveChild(importNode);
-                }
-                else
-                {
-                    if (importNode.Attributes["schemaLocation"] != null)
-                    {
-                        importNode.Attributes.RemoveNamedItem("schemaLocation");
-                    }
+                    importNode.Attributes.RemoveNamedItem("schemaLocation");
                 }
             }
         }
