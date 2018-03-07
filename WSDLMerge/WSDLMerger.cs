@@ -132,12 +132,15 @@ namespace WSDLMerge
             foreach (XmlElement schemaElement in schemaNodes)
 	        {
                 ProcessSchema(filename, wsdl, schemaElement, manager, schemas);
+
+                RemoveImportSchemaLocation(manager, schemaElement);
             }
 
             foreach ( var schema in schemas.Values )
             {
                 typesElement.AppendChild ( schema );
             }
+
         }
 
         private static void ProcessSchema (
@@ -169,8 +172,6 @@ namespace WSDLMerge
                 schemaDocument.Load ( importLocation );
 
                 XmlElement newSchema = wsdl.ImportNode ( schemaDocument.DocumentElement, true ) as XmlElement;
-                
-                ProcessSchemaImports(manager, newSchema);
 
                 ProcessSchemaIncludes(manager, filename, wsdl, newSchema);
 
@@ -183,11 +184,8 @@ namespace WSDLMerge
                     PrepareNamespaceManager ( schemaDocument ),
                     schemas);
 
-                if (import.Attributes["schemaLocation"] != null)
-                {
-                    import.Attributes.RemoveNamedItem("schemaLocation");
-                }
             }
+
         }
 
         /// <summary>
@@ -231,10 +229,10 @@ namespace WSDLMerge
         /// </summary>
         /// <param name="manager"></param>
         /// <param name="level"></param>
-        /// <param name="newSchema"></param>
-        private static void ProcessSchemaImports(XmlNamespaceManager manager, XmlElement newSchema)
+        /// <param name="schema"></param>
+        private static void RemoveImportSchemaLocation(XmlNamespaceManager manager, XmlElement schema)
         {
-            XmlNodeList newImports = newSchema.SelectNodes("/xsd:import", manager);
+            XmlNodeList newImports = schema.SelectNodes("/xsd:import", manager);
             foreach (XmlNode importNode in newImports)
             {
                 if (importNode.Attributes["schemaLocation"] != null)
